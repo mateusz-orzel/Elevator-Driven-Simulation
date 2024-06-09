@@ -27,6 +27,7 @@ class Person:
         self.direction_floor = direction_floor
         self.person_before = person_before
         self.state = 0
+        self.to_delete = False
 
 
     def move(self, elevator):
@@ -46,21 +47,27 @@ class Person:
         elif self.state == 3:
             self.x -= 2
 
+        elif self.state == 4:
+            self.to_delete = True
+
 
     def get_state(self, elevator):
 
         if self.x > elevator.x + elevator.width + 20:
             self.state = 0
 
-        if self.x == elevator.x + elevator.width + 20 and self.state != 1:
+        if self.x == elevator.x + elevator.width + 20 and self.state == 0:
             heapq.heappush(elevator.floor_queue, (self.current_floor, self.direction_floor))
             self.state  = 1
 
-        elif self.current_floor == elevator.current_floor:
+        if self.current_floor == elevator.current_floor and self.state == 1:
             self.state = 2
 
-        elif self.direction_floor == elevator.current_floor:
+        if self.direction_floor == elevator.current_floor and self.state == 2:
             self.state = 3
+
+        if self.x < 0 and self.state == 3:
+            self.state = 4
 
 
     def draw(self, window):
@@ -75,12 +82,15 @@ class Person:
         
         window.blit(text, text_rect)
 
+        print(self.state)
+
 class Elevator:
     def __init__(self, x, y, width, height, total_floors = 4):
         
         self.width = width
         self.height = height
-        self.floor2y = {i:WINDOW_HEIGHT - (WINDOW_HEIGHT//total_floors)*(i + 1) for i in range(total_floors)}
+        self.floor2y = {i:WINDOW_HEIGHT - (WINDOW_HEIGHT//total_floors)*(i+1) for i in range(total_floors)}
+    
         self.current_floor = 0
         self.capacity = 4
 
@@ -96,7 +106,7 @@ class Elevator:
         heapq.heapify(self.floor_queue)
 
         self.emergency_rate = 0.001
-        
+
 
     def go_floor(self, target_floor):
 
@@ -104,14 +114,15 @@ class Elevator:
 
         for next_floor in range(self.current_floor + step, target_floor + step, step):
 
-            while self.y != self.floor2y[self.current_floor]:
+            while self.y != self.floor2y[self.current_floor + step]:
                 time.sleep(0.01)  
-                if self.y > self.floor2y[self.current_floor]:
+                if self.y > self.floor2y[self.current_floor + step]:
                     self.y -= 1 
                 else:
                     self.y += 1 
 
             self.current_floor = next_floor
+        self.doors_open = True
 
     def move(self):
         
@@ -124,6 +135,7 @@ class Elevator:
         
     def draw(self, window):
         pygame.draw.rect(window, RED, (self.x, self.y, self.width, self.height))
+
 
     def run(self):
         while True:
@@ -156,10 +168,10 @@ class Simulation:
             direction_floor = rd.randint(0, self.total_floors - 1)
 
         try:
-            person = Person(floor, direction_floor, self.window_width - 150, 70 + WINDOW_HEIGHT - self.window_height//self.total_floors - (floor * (self.window_height // self.elevator.total_floors)), 15, 40, person_before=self.floors[floor][-1])
+            person = Person(floor, direction_floor, self.window_width - 150, WINDOW_HEIGHT - self.window_height//self.total_floors - ((floor - 1) * (self.window_height // self.elevator.total_floors)) - 42, 15, 40, person_before=self.floors[floor][-1])
         
         except:
-            person = Person(floor, direction_floor, self.window_width - 150, 70 + WINDOW_HEIGHT - self.window_height//self.total_floors - (floor * (self.window_height // self.elevator.total_floors)), 15, 40)
+            person = Person(floor, direction_floor, self.window_width - 150, WINDOW_HEIGHT - self.window_height//self.total_floors - ((floor - 1) * (self.window_height // self.elevator.total_floors)) - 42, 15, 40)
         
         self.floors[floor].append(person)
 
@@ -190,7 +202,7 @@ class Simulation:
                             
         while self.run:
             
-            print(self.elevator.floor_queue)
+            #print(self.elevator.current_floor)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.run = False
@@ -213,6 +225,11 @@ class Simulation:
 
             for floor, people in self.floors.items():
                 for person in people:
+
+                    if person.to_delete:
+                        person.to_delete = False
+                        self.floors[floor].pop(0)
+                        
                     person.move(self.elevator)
                     person.draw(self.window)
                      
@@ -221,5 +238,5 @@ class Simulation:
 
 
 if __name__ == "__main__":
-    simulation = Simulation(total_floors=7)
+    simulation = Simulation(total_floors=4)
     simulation.main()
