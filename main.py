@@ -4,18 +4,36 @@ import random as rd
 import heapq
 import time
 import threading
-
-
-pygame.init()
+import os
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
 RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 800
 
+pygame.init()
+pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+
+num_frames = 6
+
+walking_frames = []
+
+frames_directory = './images'
+
+for i in range(1, num_frames + 1):
+    frame_path = os.path.join(frames_directory, f'frame_{i}.png')
+    
+
+    if os.path.exists(frame_path):
+        frame = pygame.image.load(frame_path).convert_alpha()
+        color_key = frame.get_at((0, 0))  # Gets the color of the upper left corner
+        frame.set_colorkey(color_key) 
+        frame = pygame.transform.flip(frame, True, False)
+        walking_frames.append(frame)
 
 class Person:
     def __init__(self, current_floor, direction_floor, x, y, width, height, person_before = None):
@@ -28,6 +46,8 @@ class Person:
         self.person_before = person_before
         self.state = 0
         self.to_delete = False
+        self.animation_index = 0
+        self.animation_index_break = 0
 
 
     def move(self, elevator):
@@ -36,17 +56,25 @@ class Person:
         
         if self.state == 0:
             if self.person_before == None or (self.person_before.x + self.person_before.width + 5 < self.x):
-                self.x -= 2
+                self.x -= 1
+                self.animation_index_break += 1
+                if self.animation_index_break == 20:
+                    self.animation_index = (self.animation_index + 1) % len(walking_frames)
+                    self.animation_index_break = 0
 
         elif self.state == 1:
-            pass
+            self.animation_index = 4
 
         elif self.state == 2:
             self.x = elevator.x + 2
-            self.y = elevator.y + elevator.height - self.height - 2
+            self.y = elevator.y + elevator.height - self.height
 
         elif self.state == 3:
-            self.x -= 2
+            self.x -= 1
+            self.animation_index_break += 1
+            if self.animation_index_break == 20:
+                self.animation_index = (self.animation_index + 1) % len(walking_frames)
+                self.animation_index_break = 0
 
         elif self.state == 4:
             self.to_delete = True
@@ -64,14 +92,16 @@ class Person:
             self.state  = 1
         
         # Wsiadanie do windy
-        if self.current_floor == elevator.current_floor and self.state == 1 and elevator.num_in + 1 <= elevator.capacity:
+        if self.current_floor == elevator.current_floor and self.state == 1 and elevator.open:
             self.state = 2
             elevator.num_in += 1
+            elevator.open_close()
 
         # Jechanie windą do konkretnego piętra
         if self.direction_floor == elevator.current_floor and self.state == 2:
             self.state = 3
             elevator.num_in -= 1
+            elevator.open_close()
 
         # Usuwanie obiektu po przejściu do galerii
         if self.x < 0 and self.state == 3:
@@ -79,18 +109,21 @@ class Person:
 
 
     def draw(self, window):
-        pygame.draw.rect(window, BLACK, (self.x, self.y, self.width, self.height))
-                
+
+        current_frame = walking_frames[self.animation_index]
+        window.blit(current_frame, (self.x, self.y))
+
         font = pygame.font.Font(None, 24)
-        text = font.render(f'{self.direction_floor}', True, WHITE)
-        center_x = self.x + self.width // 2
-        center_y = self.y + self.height // 2
-        
-        text_rect = text.get_rect(center=(center_x, center_y))
-        
+        text = font.render(f'{self.direction_floor}', True, BLACK)
+
+        text_x = self.x + current_frame.get_width() // 2
+        text_y = self.y - 10
+
+        text_rect = text.get_rect(center=(text_x, text_y))
+
         window.blit(text, text_rect)
 
-        print(self.state)
+        #print(self.state)
 
 class Elevator:
     def __init__(self, x, y, width, height, total_floors = 4):
@@ -100,6 +133,7 @@ class Elevator:
         self.floor2y = {i:WINDOW_HEIGHT - (WINDOW_HEIGHT//total_floors)*(i+1) for i in range(total_floors)}
     
         self.current_floor = 0
+        self.destination_floor = 0
         self.capacity = 1
 
         self.x = x
@@ -115,12 +149,15 @@ class Elevator:
 
         self.emergency_rate = 0.001
 
+        self.open = False
         self.num_in = 0
 
 
     def go_floor(self, target_floor):
 
         step = 1 if target_floor > self.current_floor else -1
+
+        self.destination_floor = target_floor
 
         for next_floor in range(self.current_floor + step, target_floor + step, step):
 
@@ -133,9 +170,18 @@ class Elevator:
 
             self.current_floor = next_floor
         self.doors_open = True
+    
+
+    def open_close(self):
+        if self.destination_floor == self.current_floor and self.num_in < self.capacity:
+            self.open = True
+
+        else:
+            self.open = False
 
     def move(self):
         
+        self.open_close()
         if self.floor_queue:
             floor, dest = heapq.heappop(self.floor_queue)
             self.go_floor(floor)
@@ -174,14 +220,17 @@ class Simulation:
         
         direction_floor = rd.randint(0, self.total_floors - 1)
 
+        people_width = walking_frames[0].get_width()
+        people_height = walking_frames[0].get_height()
+
         while direction_floor == floor:
             direction_floor = rd.randint(0, self.total_floors - 1)
 
         try:
-            person = Person(floor, direction_floor, self.window_width - 150, WINDOW_HEIGHT - self.window_height//self.total_floors - ((floor - 1) * (self.window_height // self.elevator.total_floors)) - 42, 15, 40, person_before=self.floors[floor][-1])
+            person = Person(floor, direction_floor, self.window_width - 150, WINDOW_HEIGHT - self.window_height//self.total_floors - ((floor - 1) * (self.window_height // self.elevator.total_floors)) - people_height, people_width, people_height, person_before=self.floors[floor][-1])
         
         except:
-            person = Person(floor, direction_floor, self.window_width - 150, WINDOW_HEIGHT - self.window_height//self.total_floors - ((floor - 1) * (self.window_height // self.elevator.total_floors)) - 42, 15, 40)
+            person = Person(floor, direction_floor, self.window_width - 150, WINDOW_HEIGHT - self.window_height//self.total_floors - ((floor - 1) * (self.window_height // self.elevator.total_floors)) - people_height, people_width, people_height)
         
         self.floors[floor].append(person)
 
