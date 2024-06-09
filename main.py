@@ -35,7 +35,8 @@ class Person:
         self.get_state(elevator)
         
         if self.state == 0:
-            self.x -= 2
+            if self.person_before == None or (self.person_before.x + self.person_before.width + 5 < self.x):
+                self.x -= 2
 
         elif self.state == 1:
             pass
@@ -53,19 +54,26 @@ class Person:
 
     def get_state(self, elevator):
 
+        # Biegnięcie w kierunku windy
         if self.x > elevator.x + elevator.width + 20:
             self.state = 0
 
+        # Zawołanie windy
         if self.x == elevator.x + elevator.width + 20 and self.state == 0:
             heapq.heappush(elevator.floor_queue, (self.current_floor, self.direction_floor))
             self.state  = 1
-
-        if self.current_floor == elevator.current_floor and self.state == 1:
+        
+        # Wsiadanie do windy
+        if self.current_floor == elevator.current_floor and self.state == 1 and elevator.num_in + 1 <= elevator.capacity:
             self.state = 2
+            elevator.num_in += 1
 
+        # Jechanie windą do konkretnego piętra
         if self.direction_floor == elevator.current_floor and self.state == 2:
             self.state = 3
+            elevator.num_in -= 1
 
+        # Usuwanie obiektu po przejściu do galerii
         if self.x < 0 and self.state == 3:
             self.state = 4
 
@@ -92,7 +100,7 @@ class Elevator:
         self.floor2y = {i:WINDOW_HEIGHT - (WINDOW_HEIGHT//total_floors)*(i+1) for i in range(total_floors)}
     
         self.current_floor = 0
-        self.capacity = 4
+        self.capacity = 1
 
         self.x = x
         self.y = self.floor2y[self.current_floor]
@@ -106,6 +114,8 @@ class Elevator:
         heapq.heapify(self.floor_queue)
 
         self.emergency_rate = 0.001
+
+        self.num_in = 0
 
 
     def go_floor(self, target_floor):
