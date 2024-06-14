@@ -91,11 +91,12 @@ class Person:
 
         # Zawołanie windy
         if self.x == elevator.x + elevator.width + 20 and self.state == 0:
-            heapq.heappush(elevator.floor_queue, (self.current_floor, self.direction_floor))
+            heapq.heappush(elevator.floor_queue, (0, self.current_floor))
             self.state  = 1
         
         # Wsiadanie do windy
         if self.current_floor == elevator.current_floor and self.state == 1 and elevator.open:
+            heapq.heappush(elevator.floor_queue, (-1, self.direction_floor))
             self.state = 2
             elevator.num_in += 1
             elevator.open_close()
@@ -113,18 +114,19 @@ class Person:
 
     def draw(self, window):
 
-        current_frame = walking_frames[self.animation_index]
-        window.blit(current_frame, (self.x, self.y))
+        if self.state != 2:
+            current_frame = walking_frames[self.animation_index]
+            window.blit(current_frame, (self.x, self.y))
 
-        font = pygame.font.Font(None, 24)
-        text = font.render(f'{self.direction_floor}', True, BLACK)
+            font = pygame.font.Font(None, 24)
+            text = font.render(f'{self.direction_floor}', True, BLACK)
 
-        text_x = self.x + current_frame.get_width() // 2
-        text_y = self.y
+            text_x = self.x + current_frame.get_width() // 2
+            text_y = self.y
 
-        text_rect = text.get_rect(center=(text_x, text_y))
+            text_rect = text.get_rect(center=(text_x, text_y))
 
-        window.blit(text, text_rect)
+            window.blit(text, text_rect)
 
 class Elevator:
     def __init__(self, x, y, width, height, total_floors = 4):
@@ -135,7 +137,7 @@ class Elevator:
     
         self.current_floor = 0
         self.destination_floor = 0
-        self.capacity = 1
+        self.capacity = 2
 
         self.x = x
         self.y = self.floor2y[self.current_floor]
@@ -188,15 +190,12 @@ class Elevator:
     def move(self):
         
         if self.floor_queue:
-            floor, dest = heapq.heappop(self.floor_queue)
-            self.go_floor(floor)
-            time.sleep(1)
+            _, dest = heapq.heappop(self.floor_queue)
             self.go_floor(dest)
     
         
     def draw(self, window):
         
-        print(self.current_floor)
         self.set_floor()
         self.open_close()
         pygame.draw.rect(window, GRAY, (self.x, 0, self.width, WINDOW_HEIGHT))
@@ -276,7 +275,6 @@ class Simulation:
                             
         while self.run:
             
-            #print(self.elevator.current_floor)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.run = False
