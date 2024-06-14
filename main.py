@@ -10,7 +10,9 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
 RED = (255, 0, 0)
+YELLOW = (220, 220, 0)
 BLUE = (0, 0, 255)
+DARK_GRAY = (150, 150, 150)
 
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 800
@@ -48,6 +50,7 @@ class Person:
         self.to_delete = False
         self.animation_index = 0
         self.animation_index_break = 0
+        self.priority = False
 
 
     def move(self, elevator):
@@ -88,11 +91,12 @@ class Person:
 
         # Zawołanie windy
         if self.x == elevator.x + elevator.width + 20 and self.state == 0:
-            heapq.heappush(elevator.floor_queue, (self.current_floor, self.direction_floor))
+            heapq.heappush(elevator.floor_queue, (0, self.current_floor))
             self.state  = 1
         
         # Wsiadanie do windy
         if self.current_floor == elevator.current_floor and self.state == 1 and elevator.open:
+            heapq.heappush(elevator.floor_queue, (-1, self.direction_floor))
             self.state = 2
             elevator.num_in += 1
             elevator.open_close()
@@ -110,20 +114,19 @@ class Person:
 
     def draw(self, window):
 
-        current_frame = walking_frames[self.animation_index]
-        window.blit(current_frame, (self.x, self.y))
+        if self.state != 2:
+            current_frame = walking_frames[self.animation_index]
+            window.blit(current_frame, (self.x, self.y))
 
-        font = pygame.font.Font(None, 24)
-        text = font.render(f'{self.direction_floor}', True, BLACK)
+            font = pygame.font.Font(None, 24)
+            text = font.render(f'{self.direction_floor}', True, BLACK)
 
-        text_x = self.x + current_frame.get_width() // 2
-        text_y = self.y - 10
+            text_x = self.x + current_frame.get_width() // 2
+            text_y = self.y
 
-        text_rect = text.get_rect(center=(text_x, text_y))
+            text_rect = text.get_rect(center=(text_x, text_y))
 
-        window.blit(text, text_rect)
-
-        #print(self.state)
+            window.blit(text, text_rect)
 
 class Elevator:
     def __init__(self, x, y, width, height, total_floors = 4):
@@ -134,7 +137,7 @@ class Elevator:
     
         self.current_floor = 0
         self.destination_floor = 0
-        self.capacity = 1
+        self.capacity = 2
 
         self.x = x
         self.y = self.floor2y[self.current_floor]
@@ -154,23 +157,28 @@ class Elevator:
 
 
     def go_floor(self, target_floor):
-
         step = 1 if target_floor > self.current_floor else -1
 
         self.destination_floor = target_floor
 
-        for next_floor in range(self.current_floor + step, target_floor + step, step):
-
-            while self.y != self.floor2y[self.current_floor + step]:
-                time.sleep(0.01)  
-                if self.y > self.floor2y[self.current_floor + step]:
-                    self.y -= 1 
+        for next_floor in range(self.current_floor, target_floor + step, step):
+            while self.y != self.floor2y[next_floor]:
+                time.sleep(0.01)
+                if self.y > self.floor2y[next_floor]:
+                    self.y -= 1
                 else:
-                    self.y += 1 
+                    self.y += 1
 
             self.current_floor = next_floor
-        self.doors_open = True
-    
+
+    def set_floor(self):
+        calculated_floor = (self.total_floors - (self.y - 2) / self.height - 1)
+        
+        if calculated_floor.is_integer():
+            self.current_floor = int(calculated_floor)
+        else:
+            self.current_floor = calculated_floor
+        
 
     def open_close(self):
         if self.destination_floor == self.current_floor and self.num_in < self.capacity:
@@ -181,17 +189,21 @@ class Elevator:
 
     def move(self):
         
-        self.open_close()
         if self.floor_queue:
-            floor, dest = heapq.heappop(self.floor_queue)
-            self.go_floor(floor)
-            time.sleep(1)
+            _, dest = heapq.heappop(self.floor_queue)
             self.go_floor(dest)
     
         
     def draw(self, window):
-        pygame.draw.rect(window, RED, (self.x, self.y, self.width, self.height))
+        
+        self.set_floor()
+        self.open_close()
+        pygame.draw.rect(window, GRAY, (self.x, 0, self.width, WINDOW_HEIGHT))
+        pygame.draw.rect(window, DARK_GRAY, (self.x, self.y, self.width, self.height))
 
+        if self.open:
+            pygame.draw.rect(window, YELLOW, (self.x + 5, self.y + 5, self.width - 10, self.height - 10))
+            
 
     def run(self):
         while True:
@@ -207,9 +219,9 @@ class Simulation:
         self.window = pygame.display.set_mode((self.window_width, self.window_height))
         self.total_floors = total_floors
         self.floors = {i: [] for i in range(self.total_floors)}
-        self.buttons = [pygame.Rect(self.window_width - 100, WINDOW_HEIGHT - self.window_height//self.total_floors - (i * (self.window_height // self.total_floors)) + 70, 60, 40) for i in range(self.total_floors)]
+        self.buttons = [pygame.Rect(self.window_width - 100, WINDOW_HEIGHT - int(0.5*(self.window_height//self.total_floors)) - 20 - (i * (self.window_height // self.total_floors)), 40, 40) for i in range(self.total_floors)]
 
-        self.elevator = Elevator(self.window_width//3, 500, 100, WINDOW_HEIGHT//self.total_floors, self.total_floors)
+        self.elevator = Elevator(self.window_width - 700, 500, 100, WINDOW_HEIGHT//self.total_floors, self.total_floors)
 
         self.elevator_thread = threading.Thread(target=self.elevator.run)
         self.elevator_thread.daemon = True
@@ -239,9 +251,11 @@ class Simulation:
         for i, btn in enumerate(self.buttons):
             pygame.draw.rect(self.window, GRAY, btn) 
 
-            font = pygame.font.Font(None, 24)
+            font = pygame.font.Font(None, 65)
             text = font.render(f'+', True, BLACK)
-            text_rect = text.get_rect(center=btn.center)
+            text_rect = text.get_rect(center=(btn.centerx, btn.centery))
+            text_rect.y -= 3
+            
             self.window.blit(text, text_rect)
 
 
@@ -261,7 +275,6 @@ class Simulation:
                             
         while self.run:
             
-            #print(self.elevator.current_floor)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.run = False
@@ -278,7 +291,6 @@ class Simulation:
             self.draw_floors()
             self.draw_button()
             
-            #self.elevator.move()
 
             self.elevator.draw(self.window)
 
@@ -297,5 +309,5 @@ class Simulation:
 
 
 if __name__ == "__main__":
-    simulation = Simulation(total_floors=4)
+    simulation = Simulation(total_floors=6)
     simulation.main()
