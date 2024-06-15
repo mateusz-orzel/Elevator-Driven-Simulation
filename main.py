@@ -409,6 +409,11 @@ class Simulation:
         
         self.last_people_generation_time = time.time()
 
+        self.back_button_width = 160
+        self.back_button_height = 40
+        self.back_button = pygame.Rect(10, WINDOW_HEIGHT - self.back_button_height - 10, self.back_button_width, self.back_button_height)
+        self.back_button_text = pygame.font.Font(None, 32).render('Wróć do Menu', True, WHITE)
+
     def generate_people(self):
 
         time_now = time.time()
@@ -439,6 +444,10 @@ class Simulation:
         
         self.floors[floor].append(person)
 
+    def draw_back_button(self):
+        pygame.draw.rect(self.window, DARK_GRAY, self.back_button)
+        back_button_text_rect = self.back_button_text.get_rect(center=self.back_button.center)
+        self.window.blit(self.back_button_text, back_button_text_rect)
 
     def draw_button(self, mode):
 
@@ -483,6 +492,10 @@ class Simulation:
                         if btn.collidepoint(pos):
                             self.create_people(i)
 
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.back_button.collidepoint(event.pos):
+                        self.run = False
+
             self.window.fill(WHITE)
 
             if not self.manual_mode:
@@ -490,6 +503,7 @@ class Simulation:
 
             self.draw_floors()
             self.draw_button(self.manual_mode)
+            self.draw_back_button()
 
             self.elevator.draw(self.window)
 
