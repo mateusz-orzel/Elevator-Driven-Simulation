@@ -39,6 +39,18 @@ for i in range(1, num_frames + 1):
         frame = pygame.transform.flip(frame, True, False)
         walking_frames.append(frame)
 
+def update_animation_index(obj):
+    obj.animation_index_break += 1
+    if obj.animation_index_break == 20:
+        obj.animation_index = (obj.animation_index + 1) % len(walking_frames)
+        obj.animation_index_break = 0
+
+def render_text(window, text, x, y):
+    font = pygame.font.Font(None, 24)
+    text_surface = font.render(text, True, BLACK)
+    text_rect = text_surface.get_rect(center=(x, y))
+    window.blit(text_surface, text_rect)
+
 class Person:
     def __init__(self, current_floor, direction_floor, x, y, width, height, person_before = None):
         self.x = x
@@ -66,10 +78,7 @@ class Person:
         if self.state == 0:
             if self.person_before == None or (self.person_before.x + self.person_before.width + 5 < self.x):
                 self.x -= 1
-                self.animation_index_break += 1
-                if self.animation_index_break == 20:
-                    self.animation_index = (self.animation_index + 1) % len(walking_frames)
-                    self.animation_index_break = 0
+                update_animation_index(self)
 
         elif self.state == 1:
             self.animation_index = 4
@@ -80,10 +89,7 @@ class Person:
 
         elif self.state == 3:
             self.x -= 1
-            self.animation_index_break += 1
-            if self.animation_index_break == 20:
-                self.animation_index = (self.animation_index + 1) % len(walking_frames)
-                self.animation_index_break = 0
+            update_animation_index(self)
 
         elif self.state == 4:
             self.to_delete = True
@@ -129,28 +135,9 @@ class Person:
             window.blit(current_frame, (self.x, self.y))
 
             if self.state < 2:
-
-                font = pygame.font.Font(None, 24)
-                text = font.render(f'{self.direction_floor}', True, BLACK)
-
-                text_x = self.x + current_frame.get_width() // 2
-                text_y = self.y + 10
-
-                text_rect = text.get_rect(center=(text_x, text_y))
-
-                window.blit(text, text_rect)
-
+                render_text(window, f'{self.direction_floor}', self.x + current_frame.get_width() // 2, self.y + 10)
             else:
-                
-                font = pygame.font.Font(None, 24)
-                text = font.render(f'Czas obsługi: {self.time:.3f}', True, BLACK)
-
-                text_x = self.x + current_frame.get_width() // 2
-                text_y = self.y + 10
-
-                text_rect = text.get_rect(center=(text_x, text_y))
-
-                window.blit(text, text_rect)
+                render_text(window, f'Czas obsługi: {self.time:.3f}', self.x + current_frame.get_width() // 2, self.y + 10)
 
 class Elevator:
     def __init__(self, x, y, width, height, total_floors = 4, capacity = 1, speed = 2):
