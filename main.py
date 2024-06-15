@@ -17,7 +17,7 @@ BLUE = (0, 0, 255)
 DARK_GRAY = (150, 150, 150)
 
 WINDOW_WIDTH = 1200
-WINDOW_HEIGHT = 800
+WINDOW_HEIGHT = 840
 
 pygame.init()
 pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -196,7 +196,7 @@ class Elevator:
             self.current_floor = next_floor
 
     def set_floor(self):
-        calculated_floor = (self.total_floors - (self.y - 2) / self.height - 1)
+        calculated_floor = (self.total_floors - (self.y) / self.height - 1)
         
         if calculated_floor.is_integer():
             self.current_floor = int(calculated_floor)
@@ -223,7 +223,7 @@ class Elevator:
     
         
     def draw(self, window):
-        
+
         self.set_floor()
         self.open_close()
         pygame.draw.rect(window, GRAY, (self.x, 0, self.width, WINDOW_HEIGHT))
@@ -250,7 +250,7 @@ class Menu:
         self.start_button_x = (WINDOW_WIDTH // 2) - (self.start_button_width // 2)
         self.start_button_y = (WINDOW_HEIGHT // 2) + 250
         self.start_button = pygame.Rect(self.start_button_x, self.start_button_y, self.start_button_width, self.start_button_height)
-        self.start_button_text = self.font.render('Start Simulation', True, WHITE)
+        self.start_button_text = self.font.render('Symuluj', True, WHITE)
 
         self.slider_rect_width = 200
         self.slider_rect_x = (WINDOW_WIDTH // 2) - (self.slider_rect_width // 2)
@@ -335,6 +335,9 @@ class Menu:
         simulation = Simulation(window=self.window, total_floors=self.total_floors, emergency_rate=self.emergency_rate, people_generation_freq=self.people_generation_freq, manual_mode=self.checkbox_checked, elevator_capacity=self.elevator_capacity)
         simulation.main()
 
+    def draw_menu_button(self):
+        pass
+
     def draw(self):
         self.window.fill(WHITE)
 
@@ -386,7 +389,6 @@ class Menu:
 class Simulation:
 
     def __init__(self, window, emergency_rate, people_generation_freq, manual_mode, elevator_capacity, total_floors = 4):
-
 
         self.total_floors = total_floors
         self.emergency_rate = emergency_rate
