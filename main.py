@@ -232,51 +232,65 @@ class Menu:
         pygame.init()
         self.window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         self.font = pygame.font.Font(None, 32)
-        
+        CENTER_X = WINDOW_WIDTH // 2
+        CENTER_Y = WINDOW_HEIGHT // 2
+
         self.start_button_width = 200
         self.start_button_height = 50
-        self.start_button_x = (WINDOW_WIDTH // 2) - (self.start_button_width // 2)
-        self.start_button_y = (WINDOW_HEIGHT // 2) + 250
+        self.start_button_x = CENTER_X - (self.start_button_width // 2)
+        self.start_button_y = CENTER_Y + 250
         self.start_button = pygame.Rect(self.start_button_x, self.start_button_y, self.start_button_width, self.start_button_height)
         self.start_button_text = self.font.render('Symuluj', True, WHITE)
 
-        self.slider_rect_width = 200
-        self.slider_rect_x = (WINDOW_WIDTH // 2) - (self.slider_rect_width // 2)
-        self.slider_rect_y = (WINDOW_HEIGHT // 2) - 150
-        self.slider_rect = pygame.Rect(self.slider_rect_x, self.slider_rect_y, self.slider_rect_width, 10)
-        self.slider_handle_pos = self.slider_rect_x
-        self.slider_dragging = False
-        self.emergency_rate = 0.0
+        SLIDERS_X = CENTER_X - 100
+        MARGIN = 75
+        self.sliders = {
+            'emergency_rate': {
+                'rect_x': SLIDERS_X,
+                'rect_y': CENTER_Y + MARGIN*-2,
+                'value': 0.0,
+                'dragging': False,
+                'integer': False
+            },
+            'people_generation_freq': {
+                'rect_x': SLIDERS_X,
+                'rect_y': CENTER_Y + MARGIN*-1,
+                'value': 1.0,
+                'dragging': False,
+                'integer': True,
+                'min': 1,
+                'max': 99
+            },
+            'elevator_capacity': {
+                'rect_x': SLIDERS_X,
+                'rect_y': CENTER_Y + MARGIN*0,
+                'value': 1,
+                'dragging': False,
+                'integer': True,
+                'min': 1,
+                'max': 3
+            },
+            'elevator_speed': {
+                'rect_x': SLIDERS_X,
+                'rect_y': CENTER_Y + MARGIN*1,
+                'value': 2,
+                'dragging': False,
+                'integer': True,
+                'min': 1,
+                'max': 6
+            },
+            'total_floors': {
+                'rect_x': SLIDERS_X,
+                'rect_y': CENTER_Y + MARGIN*2,
+                'value': 3,
+                'dragging': False,
+                'integer': True,
+                'min': 3,
+                'max': 7
+            }
+        }
 
-        self.freq_slider_rect_x = (WINDOW_WIDTH // 2) - (self.slider_rect_width // 2)
-        self.freq_slider_rect_y = (WINDOW_HEIGHT // 2) - 50
-        self.freq_slider_rect = pygame.Rect(self.freq_slider_rect_x , self.freq_slider_rect_y, self.slider_rect_width, 10)
-        self.freq_slider_handle_pos = self.freq_slider_rect_x 
-        self.freq_slider_dragging = False
-        self.people_generation_freq = 1.0 
-
-        self.capacity_slider_rect_x = (WINDOW_WIDTH // 2) - (self.slider_rect_width // 2)
-        self.capacity_slider_rect_y = (WINDOW_HEIGHT // 2) + 50
-        self.capacity_slider_rect = pygame.Rect(self.capacity_slider_rect_x , self.capacity_slider_rect_y, self.slider_rect_width, 10)
-        self.capacity_slider_handle_pos = self.capacity_slider_rect_x 
-        self.capacity_slider_dragging = False
-        self.elevator_capacity = 1
-
-        self.elevator_speed_slider_rect_x = (WINDOW_WIDTH // 2) - (self.slider_rect_width // 2)
-        self.elevator_speed_slider_rect_y = (WINDOW_HEIGHT // 2) + 100
-        self.elevator_speed_slider_rect = pygame.Rect(self.elevator_speed_slider_rect_x , self.elevator_speed_slider_rect_y, self.slider_rect_width, 10)
-        self.elevator_speed_slider_handle_pos = self.elevator_speed_slider_rect_x
-        self.elevator_speed_slider_dragging = False
-        self.elevator_speed = 2
-
-        self.floors_slider_rect_x = (WINDOW_WIDTH // 2) - (self.slider_rect_width // 2)
-        self.floors_slider_rect_y = (WINDOW_HEIGHT // 2) + 150
-        self.floors_slider_rect = pygame.Rect(self.floors_slider_rect_x , self.floors_slider_rect_y, self.slider_rect_width, 10)
-        self.floors_slider_handle_pos = self.floors_slider_rect_x 
-        self.floors_slider_dragging = False
-        self.total_floors = 3
-
-        self.checkbox_rect = pygame.Rect(WINDOW_WIDTH // 2 - 100, (WINDOW_HEIGHT // 2) + 200, 20, 20)
+        self.checkbox_rect = pygame.Rect(CENTER_X - 100, CENTER_Y + 210, 20, 20)
         self.checkbox_checked = False
 
     def main(self):
@@ -290,54 +304,65 @@ class Menu:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if self.start_button.collidepoint(event.pos):
                         self.start_new_simulation()
-                    elif self.slider_rect.collidepoint(event.pos) or abs(event.pos[0] - self.slider_handle_pos) <= 5:
-                        if not self.checkbox_checked:
-                            self.slider_dragging = True
-                    elif self.freq_slider_rect.collidepoint(event.pos) or abs(event.pos[0] - self.freq_slider_handle_pos) <= 5:
-                        if not self.checkbox_checked:
-                            self.freq_slider_dragging = True
-                    elif self.capacity_slider_rect.collidepoint(event.pos) or abs(event.pos[0] - self.capacity_slider_handle_pos) <= 5:
-                        self.capacity_slider_dragging = True
-                    elif self.elevator_speed_slider_rect.collidepoint(event.pos) or abs(event.pos[0] - self.elevator_speed_slider_handle_pos) <= 5:
-                        self.elevator_speed_slider_dragging = True
-                    elif self.floors_slider_rect.collidepoint(event.pos) or abs(event.pos[0] - self.floors_slider_handle_pos) <= 5:
-                        self.floors_slider_dragging = True
-                    elif self.checkbox_rect.collidepoint(event.pos):
+                    for key, slider in self.sliders.items():
+                        if self.is_slider_handle_clicked(slider, event.pos) or self.is_slider_rect_clicked(slider, event.pos):
+                            if not self.checkbox_checked or key not in ['emergency_rate', 'people_generation_freq']:
+                                slider['dragging'] = True
+                    if self.checkbox_rect.collidepoint(event.pos):
                         self.checkbox_checked = not self.checkbox_checked
 
                 elif event.type == pygame.MOUSEBUTTONUP:
-                    self.slider_dragging = False
-                    self.freq_slider_dragging = False
-                    self.capacity_slider_dragging = False
-                    self.elevator_speed_slider_dragging = False
-                    self.floors_slider_dragging = False
+                    for slider in self.sliders.values():
+                        slider['dragging'] = False
 
                 elif event.type == pygame.MOUSEMOTION:
-                    if self.slider_dragging:
-                        self.slider_handle_pos = max(self.slider_rect_x, min(event.pos[0], self.slider_rect_x + self.slider_rect_width))
-                        self.emergency_rate = (self.slider_handle_pos - self.slider_rect_x) / self.slider_rect_width
-                    elif self.freq_slider_dragging:
-                        self.freq_slider_handle_pos = max(self.freq_slider_rect_x, min(event.pos[0], self.freq_slider_rect_x + self.slider_rect_width))
-                        self.people_generation_freq = int(1 + (self.freq_slider_handle_pos - self.freq_slider_rect_x) / self.slider_rect_width * 98)
-                    elif self.capacity_slider_dragging:
-                        self.capacity_slider_handle_pos = max(self.capacity_slider_rect_x, min(event.pos[0], self.capacity_slider_rect_x + self.slider_rect_width))
-                        self.elevator_capacity = int(1 + (self.capacity_slider_handle_pos - self.capacity_slider_rect_x) / self.slider_rect_width * 2)
-                    elif self.elevator_speed_slider_dragging:
-                        self.elevator_speed_slider_handle_pos = max(self.elevator_speed_slider_rect_x, min(event.pos[0], self.elevator_speed_slider_rect_x + self.slider_rect_width))
-                        self.elevator_speed = int(1 + (self.elevator_speed_slider_handle_pos - self.elevator_speed_slider_rect_x) / self.slider_rect_width * 5)
-                    elif self.floors_slider_dragging:
-                        self.floors_slider_handle_pos = max(self.floors_slider_rect_x, min(event.pos[0], self.floors_slider_rect_x + self.slider_rect_width))
-                        self.total_floors = int(3 + (self.floors_slider_handle_pos - self.floors_slider_rect_x) / self.slider_rect_width * 4)
+                    for key, slider in self.sliders.items():
+                        if slider['dragging']:
+                            self.update_slider_value(slider, event.pos, key)
 
             self.draw()
             pygame.display.update()
 
+    def is_slider_handle_clicked(self, slider, pos):
+        handle_pos = slider['rect_x'] + int((slider['value'] - slider.get('min', 0)) / (slider.get('max', 1) - slider.get('min', 0)) * 200)
+        return abs(pos[0] - handle_pos) <= 5 and abs(pos[1] - (slider['rect_y'] + 5)) <= 5
+
+    def is_slider_rect_clicked(self, slider, pos):
+        rect = pygame.Rect(slider['rect_x'], slider['rect_y'], 200, 10)
+        return rect.collidepoint(pos)
+
+    def update_slider_value(self, slider, pos, key):
+        handle_pos = max(slider['rect_x'], min(pos[0], slider['rect_x'] + 200))
+        slider['value'] = (handle_pos - slider['rect_x']) / 200 * (slider.get('max', 1) - slider.get('min', 0)) + slider.get('min', 0)
+        if slider['integer']:
+            slider['value'] = int(slider['value'])
+        if key == 'emergency_rate':
+            self.sliders['people_generation_freq']['max'] = 100 - slider['value']
+            self.sliders['people_generation_freq']['value'] = min(self.sliders['people_generation_freq']['value'], 100 - slider['value'])
+        elif key == 'people_generation_freq':
+            self.sliders['emergency_rate']['max'] = 100 - slider['value']
+            self.sliders['emergency_rate']['value'] = min(self.sliders['emergency_rate']['value'], 100 - slider['value'])
+
     def start_new_simulation(self):
-        simulation = Simulation(window=self.window, total_floors=self.total_floors, emergency_rate=self.emergency_rate, people_generation_freq=self.people_generation_freq, manual_mode=self.checkbox_checked, elevator_capacity=self.elevator_capacity, speed=self.elevator_speed)
+        simulation = Simulation(
+            window=self.window,
+            total_floors=self.sliders['total_floors']['value'],
+            emergency_rate=self.sliders['emergency_rate']['value'],
+            people_generation_freq=self.sliders['people_generation_freq']['value'],
+            manual_mode=self.checkbox_checked,
+            elevator_capacity=self.sliders['elevator_capacity']['value'],
+            speed=self.sliders['elevator_speed']['value']
+        )
         simulation.main()
 
-    def draw_menu_button(self):
-        pass
+    def draw_slider(self, slider, label):
+        pygame.draw.rect(self.window, BLACK, (slider['rect_x'], slider['rect_y'], 200, 10))
+        handle_pos = slider['rect_x'] + int((slider['value'] - slider.get('min', 0)) / (slider.get('max', 1) - slider.get('min', 0)) * 200)
+        pygame.draw.circle(self.window, BLACK, (handle_pos, slider['rect_y'] + 5), 7)
+        display_value = f'{slider["value"]:.3f}' if not slider['integer'] else f'{slider["value"]:.0f}'
+        text = self.font.render(f'{label}: {display_value}', True, DARK_GRAY)
+        text_rect = text.get_rect(center=(WINDOW_WIDTH // 2, slider['rect_y'] + 30))
+        self.window.blit(text, text_rect)
 
     def draw(self):
         self.window.fill(WHITE)
@@ -350,39 +375,11 @@ class Menu:
         start_button_text_rect = self.start_button_text.get_rect(center=self.start_button.center)
         self.window.blit(self.start_button_text, start_button_text_rect)
 
-        pygame.draw.rect(self.window, BLACK, self.slider_rect)
-        pygame.draw.circle(self.window, BLACK, (self.slider_handle_pos, self.slider_rect_y + 5), 7)
-        rate_text = self.font.render(f'Emergency Rate: {self.emergency_rate:.3f}', True, DARK_GRAY)
-        rate_text_rect = rate_text.get_rect(center=(WINDOW_WIDTH // 2, self.slider_rect_y + 30))
-        self.window.blit(rate_text, rate_text_rect)
-
-        # People walk speed slider
-     
-        # elevator speed slider
-        pygame.draw.rect(self.window, BLACK, self.elevator_speed_slider_rect)
-        pygame.draw.circle(self.window, BLACK, (self.elevator_speed_slider_handle_pos, self.elevator_speed_slider_rect_y + 5), 7)
-        elevator_speed_text = self.font.render(f'Elevator Speed: {self.elevator_speed}', True, DARK_GRAY)
-        elevator_speed_text_rect = elevator_speed_text.get_rect(center=(WINDOW_WIDTH // 2, self.elevator_speed_slider_rect_y + 30))
-        self.window.blit(elevator_speed_text, elevator_speed_text_rect)
-
-        slider_color = DARK_GRAY if self.checkbox_checked else BLACK
-        pygame.draw.rect(self.window, slider_color, self.freq_slider_rect)
-        pygame.draw.circle(self.window, slider_color, (self.freq_slider_handle_pos, self.freq_slider_rect_y + 5), 7)
-        freq_text = self.font.render(f'People Generation Freq: {self.people_generation_freq:.1f}', True, slider_color)
-        freq_text_rect = freq_text.get_rect(center=(WINDOW_WIDTH // 2, self.freq_slider_rect_y + 30))
-        self.window.blit(freq_text, freq_text_rect)
-
-        pygame.draw.rect(self.window, BLACK, self.capacity_slider_rect)
-        pygame.draw.circle(self.window, BLACK, (self.capacity_slider_handle_pos, self.capacity_slider_rect_y + 5), 7)
-        capacity_text = self.font.render(f'Elevator Capacity: {self.elevator_capacity}', True, DARK_GRAY)
-        capacity_text_rect = capacity_text.get_rect(center=(WINDOW_WIDTH // 2, self.capacity_slider_rect_y + 30))
-        self.window.blit(capacity_text, capacity_text_rect)
-
-        pygame.draw.rect(self.window, BLACK, self.floors_slider_rect)
-        pygame.draw.circle(self.window, BLACK, (self.floors_slider_handle_pos, self.floors_slider_rect_y + 5), 7)
-        floors_text = self.font.render(f'Total Floors: {self.total_floors}', True, DARK_GRAY)
-        floors_text_rect = floors_text.get_rect(center=(WINDOW_WIDTH // 2, self.floors_slider_rect_y + 30))
-        self.window.blit(floors_text, floors_text_rect)
+        self.draw_slider(self.sliders['emergency_rate'], 'Emergency Rate')
+        self.draw_slider(self.sliders['people_generation_freq'], 'People Generation Freq')
+        self.draw_slider(self.sliders['elevator_capacity'], 'Elevator Capacity')
+        self.draw_slider(self.sliders['elevator_speed'], 'Elevator Speed')
+        self.draw_slider(self.sliders['total_floors'], 'Total Floors')
 
         pygame.draw.rect(self.window, BLACK, self.checkbox_rect, 2)
         if self.checkbox_checked:
@@ -394,7 +391,6 @@ class Menu:
         self.window.blit(checkbox_label, checkbox_label_rect)
 
         pygame.display.flip()
-
 
 class Simulation:
 
