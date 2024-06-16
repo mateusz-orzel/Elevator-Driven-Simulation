@@ -318,7 +318,7 @@ class Menu:
                 elif event.type == pygame.MOUSEMOTION:
                     for key, slider in self.sliders.items():
                         if slider['dragging']:
-                            self.update_slider_value(slider, event.pos, key)
+                            self.update_slider_value(slider, event.pos)
 
             self.draw()
             pygame.display.update()
@@ -331,17 +331,11 @@ class Menu:
         rect = pygame.Rect(slider['rect_x'], slider['rect_y'], 200, 10)
         return rect.collidepoint(pos)
 
-    def update_slider_value(self, slider, pos, key):
+    def update_slider_value(self, slider, pos):
         handle_pos = max(slider['rect_x'], min(pos[0], slider['rect_x'] + 200))
         slider['value'] = (handle_pos - slider['rect_x']) / 200 * (slider.get('max', 1) - slider.get('min', 0)) + slider.get('min', 0)
         if slider['integer']:
             slider['value'] = int(slider['value'])
-        if key == 'emergency_rate':
-            self.sliders['people_generation_freq']['max'] = 100 - slider['value']
-            self.sliders['people_generation_freq']['value'] = min(self.sliders['people_generation_freq']['value'], 100 - slider['value'])
-        elif key == 'people_generation_freq':
-            self.sliders['emergency_rate']['max'] = 100 - slider['value']
-            self.sliders['emergency_rate']['value'] = min(self.sliders['emergency_rate']['value'], 100 - slider['value'])
 
     def start_new_simulation(self):
         simulation = Simulation(
