@@ -7,6 +7,8 @@ import threading
 import os
 import sys
 import time
+import numpy as np
+import matplotlib.pyplot as plt
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -19,8 +21,12 @@ DARK_GRAY = (150, 150, 150)
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 840
 
+RESULTS = []
+RESULTS_DICT = {}
+
 pygame.init()
 pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+pygame.display.set_caption("Wielokolejkowy model M/M/1")
 
 num_frames = 6
 
@@ -68,7 +74,7 @@ class Person:
         self.priority = False
 
         
-        self.time = -1
+        self.time_start = time.time()
 
 
     def move(self, elevator):
@@ -108,7 +114,7 @@ class Person:
         
         # Wsiadanie do windy
         if self.current_floor == elevator.current_floor and self.state == 1 and elevator.open:
-            self.elevator_in_time = time.time()
+            #self.elevator_in_time = time.time()
 
             heapq.heappush(elevator.floor_queue, (-1, self.direction_floor))
             self.state = 2
@@ -117,8 +123,8 @@ class Person:
 
         # Jechanie windą do konkretnego piętra
         if self.direction_floor == elevator.current_floor and self.state == 2:
-            self.time = time.time() - self.elevator_in_time
-
+            self.time = round(time.time() - self.time_start, 2)
+            RESULTS.append(self.time)
             self.state = 3
             elevator.num_in -= 1
             elevator.open_close()
@@ -140,7 +146,7 @@ class Person:
                 render_text(window, f'Czas obsługi: {self.time:.3f}', self.x + current_frame.get_width() // 2, self.y + 10)
 
 class Elevator:
-    def __init__(self, x, y, width, height, total_floors = 4, capacity = 1, speed = 2):
+    def __init__(self, x, y, width, height, window, total_floors = 4, capacity = 1, speed = 2):
         
         self.width = width
         self.height = height
@@ -166,6 +172,8 @@ class Elevator:
 
         self.open = False
         self.num_in = 0
+
+        self.window = window
 
 
     def go_floor(self, target_floor):
@@ -205,23 +213,34 @@ class Elevator:
             _, dest = heapq.heappop(self.floor_queue)
             self.go_floor(dest)
 
-    def make_awaria(self):
-        if rd.random() < self.emergency_rate:
-            print()
+
+    def make_emergency(self, emegency_time = 0.2):
+        
+        for i  in range(100):
+            text = f"{(2 - i*emegency_time)}"
+            print(text)
+            render_text(self.window, text, self.x, self.y)
+            time.sleep(emegency_time)
+                
     
         
-    def draw(self, window):
+    def draw(self):
 
         self.set_floor()
         self.open_close()
-        pygame.draw.rect(window, GRAY, (self.x, 0, self.width, WINDOW_HEIGHT))
-        pygame.draw.rect(window, DARK_GRAY, (self.x, self.y, self.width, self.height))
+        pygame.draw.rect(self.window, GRAY, (self.x, 0, self.width, WINDOW_HEIGHT))
+        pygame.draw.rect(self.window, DARK_GRAY, (self.x, self.y, self.width, self.height))
 
         if self.open:
-            pygame.draw.rect(window, YELLOW, (self.x + 5, self.y + 5, self.width - 10, self.height - 10))
-            
+            pygame.draw.rect(self.window, YELLOW, (self.x + 5, self.y + 5, self.width - 10, self.height - 10))
+        
+
 
     def run(self):
+        
+        #if rd.random() < self.emergency_rate:
+        #    self.make_emergency()
+
         while True:
             self.move()
             time.sleep(0.5)
@@ -245,12 +264,14 @@ class Menu:
         SLIDERS_X = CENTER_X - 100
         MARGIN = 75
         self.sliders = {
-            'emergency_rate': {
+            'simulation_time': {
                 'rect_x': SLIDERS_X,
                 'rect_y': CENTER_Y + MARGIN*-2,
                 'value': 0.0,
                 'dragging': False,
-                'integer': False
+                'integer': True,
+                'min': 0,
+                'max': 500,
             },
             'people_generation_freq': {
                 'rect_x': SLIDERS_X,
@@ -341,7 +362,7 @@ class Menu:
         simulation = Simulation(
             window=self.window,
             total_floors=self.sliders['total_floors']['value'],
-            emergency_rate=self.sliders['emergency_rate']['value'],
+            simulation_time=self.sliders['simulation_time']['value'],
             people_generation_freq=self.sliders['people_generation_freq']['value'],
             manual_mode=self.checkbox_checked,
             elevator_capacity=self.sliders['elevator_capacity']['value'],
@@ -361,7 +382,7 @@ class Menu:
     def draw(self):
         self.window.fill(WHITE)
 
-        text = self.font.render('Parameters', True, DARK_GRAY)
+        text = self.font.render('Parametry', True, DARK_GRAY)
         text_rect = text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 200))
         self.window.blit(text, text_rect)
 
@@ -369,18 +390,18 @@ class Menu:
         start_button_text_rect = self.start_button_text.get_rect(center=self.start_button.center)
         self.window.blit(self.start_button_text, start_button_text_rect)
 
-        self.draw_slider(self.sliders['emergency_rate'], 'Emergency Rate')
-        self.draw_slider(self.sliders['people_generation_freq'], 'People Generation Freq')
-        self.draw_slider(self.sliders['elevator_capacity'], 'Elevator Capacity')
-        self.draw_slider(self.sliders['elevator_speed'], 'Elevator Speed')
-        self.draw_slider(self.sliders['total_floors'], 'Total Floors')
+        self.draw_slider(self.sliders['simulation_time'], 'Czas Symulacji')
+        self.draw_slider(self.sliders['people_generation_freq'], 'Częstotliwość Generowania Klientów')
+        self.draw_slider(self.sliders['elevator_capacity'], 'Pojemność Windy')
+        self.draw_slider(self.sliders['elevator_speed'], 'Szybkość Windy')
+        self.draw_slider(self.sliders['total_floors'], 'Liczba Pięter')
 
         pygame.draw.rect(self.window, BLACK, self.checkbox_rect, 2)
         if self.checkbox_checked:
             pygame.draw.line(self.window, BLACK, (self.checkbox_rect.left + 4, self.checkbox_rect.centery), (self.checkbox_rect.centerx, self.checkbox_rect.bottom - 4), 2)
             pygame.draw.line(self.window, BLACK, (self.checkbox_rect.centerx, self.checkbox_rect.bottom - 4), (self.checkbox_rect.right - 4, self.checkbox_rect.top + 4), 2)
 
-        checkbox_label = self.font.render('Manual Adding People', True, DARK_GRAY)
+        checkbox_label = self.font.render('Manualne Dodawanie Ludzi', True, DARK_GRAY)
         checkbox_label_rect = checkbox_label.get_rect(midleft=(self.checkbox_rect.right + 10, self.checkbox_rect.centery))
         self.window.blit(checkbox_label, checkbox_label_rect)
 
@@ -388,10 +409,10 @@ class Menu:
 
 class Simulation:
 
-    def __init__(self, window, emergency_rate, people_generation_freq, manual_mode, elevator_capacity, total_floors = 4, speed = 2):
+    def __init__(self, window, simulation_time, people_generation_freq, manual_mode, elevator_capacity, total_floors = 4, speed = 2):
 
         self.total_floors = total_floors
-        self.emergency_rate = emergency_rate
+        #self.emergency_rate = emergency_rate
         self.people_generation_freq = people_generation_freq
         self.manual_mode = manual_mode
         self.elevator_capacity = elevator_capacity
@@ -401,7 +422,7 @@ class Simulation:
         self.floors = {i: [] for i in range(self.total_floors)}
         self.buttons = [pygame.Rect(WINDOW_WIDTH - 100, WINDOW_HEIGHT - int(0.5*(WINDOW_HEIGHT//self.total_floors)) - 20 - (i * (WINDOW_HEIGHT // self.total_floors)), 40, 40) for i in range(self.total_floors)]
 
-        self.elevator = Elevator(WINDOW_WIDTH - 700, 500, 100, WINDOW_HEIGHT//self.total_floors, self.total_floors, capacity=self.elevator_capacity, speed=speed)
+        self.elevator = Elevator(WINDOW_WIDTH - 700, 500, 100, WINDOW_HEIGHT//self.total_floors, window, self.total_floors, capacity=self.elevator_capacity, speed=speed)
 
         self.elevator_thread = threading.Thread(target=self.elevator.run)
         self.elevator_thread.daemon = True
@@ -413,6 +434,9 @@ class Simulation:
         self.back_button_height = 40
         self.back_button = pygame.Rect(10, WINDOW_HEIGHT - self.back_button_height - 10, self.back_button_width, self.back_button_height)
         self.back_button_text = pygame.font.Font(None, 32).render('Wróć do Menu', True, WHITE)
+        self.start_timer = time.time()
+        self.simulation_time = simulation_time
+        self.run_stats_time = False
 
     def generate_people(self):
 
@@ -475,10 +499,60 @@ class Simulation:
             text = font.render(f'Piętro {i}', True, BLACK)
             self.window.blit(text, (10, y + 5))
 
+    def take_stats(self, moving_mean_window_size = 5):
+        data = np.array(RESULTS)
+        mean = np.mean(data)
+        std = np.std(data)
+        
+        window_size = moving_mean_window_size
+        moving_mean = np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+        random_time = rd.choice(RESULTS[int(0.2*len(RESULTS)):])
+
+        self.mean = mean
+        self.std = std
+        self.random_time = random_time
+        self.moving_mean = moving_mean
+
+
+    def display_statistics(self):
+        if not RESULTS:
+            return
+        
+        font = pygame.font.Font(None, 40)
+
+        mean_text = font.render(f"Średnia: {self.mean:.2f}", True, BLACK)
+        std_text = font.render(f"Odchylenie Standardowe: {self.std:.2f}", True, BLACK)
+        random_person_handling_time = font.render(f"Czas Obsługi Pojedynczej Losowej Osoby: {self.random_time}", True, BLACK)
+
+
+        plt.figure()
+        plt.plot(self.moving_mean, label="Średnia Ruchoma")
+        plt.xlabel("Próba")
+        plt.ylabel("Wartość")
+        plt.title("Wykres Średniej Ruchomej")
+        plt.legend()
+        plt.savefig('moving_mean_plot.png')
+        plt.close()
+
+        plot_image = pygame.image.load('moving_mean_plot.png')
+        plot_rect = plot_image.get_rect()
+        plot_rect.topleft = (10, 50)
+        self.window.blit(plot_image, plot_rect)
+
+        self.window.blit(mean_text, (10, 550))
+        self.window.blit(std_text, (10, 580))
+        self.window.blit(random_person_handling_time, (10, 610))
 
     def main(self):
                             
         while self.run:
+
+            RESULTS = []
+
+            if time.time() - self.start_timer > self.simulation_time:
+                self.run_stats_time = True
+                break
+
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -495,6 +569,14 @@ class Simulation:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if self.back_button.collidepoint(event.pos):
                         self.run = False
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+
+            if self.back_button.collidepoint(pygame.mouse.get_pos()):
+                mouse_hovering = True
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+            else:
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
 
             self.window.fill(WHITE)
 
@@ -505,7 +587,7 @@ class Simulation:
             self.draw_button(self.manual_mode)
             self.draw_back_button()
 
-            self.elevator.draw(self.window)
+            self.elevator.draw()
 
             for floor, people in self.floors.items():
                 for person in people:
@@ -518,6 +600,34 @@ class Simulation:
                     person.draw(self.window)
                      
             
+            pygame.display.update()
+
+        #print(RESULTS)
+
+        if self.run_stats_time:
+            self.take_stats()
+
+        while self.run_stats_time:
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.back_button.collidepoint(event.pos):
+                        self.run_stats_time = False
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+            if self.back_button.collidepoint(pygame.mouse.get_pos()):
+                mouse_hovering = True
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+            else:
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+
+            self.window.fill(WHITE)
+            self.display_statistics()
+            self.draw_back_button()
             pygame.display.update()
 
 
