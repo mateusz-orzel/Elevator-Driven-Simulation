@@ -21,8 +21,9 @@ DARK_GRAY = (150, 150, 150)
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 840
 
-RESULTS = []
-RESULTS_DICT = {}
+RESULTS = defaultdict(list)
+num_simulations = 53
+simulation_id = None
 
 pygame.init()
 pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -124,7 +125,7 @@ class Person:
         # Jechanie windą do konkretnego piętra
         if self.direction_floor == elevator.current_floor and self.state == 2:
             self.time = round(time.time() - self.time_start, 2)
-            RESULTS.append(self.time)
+            RESULTS[simulation_id].append(self.time)
             self.state = 3
             elevator.num_in -= 1
             elevator.open_close()
@@ -267,7 +268,7 @@ class Menu:
             'simulation_time': {
                 'rect_x': SLIDERS_X,
                 'rect_y': CENTER_Y + MARGIN*-2,
-                'value': 0.0,
+                'value': 10.0,
                 'dragging': False,
                 'integer': True,
                 'min': 0,
@@ -276,7 +277,7 @@ class Menu:
             'people_generation_freq': {
                 'rect_x': SLIDERS_X,
                 'rect_y': CENTER_Y + MARGIN*-1,
-                'value': 1.0,
+                'value': 99.0,
                 'dragging': False,
                 'integer': True,
                 'min': 1,
@@ -294,7 +295,7 @@ class Menu:
             'elevator_speed': {
                 'rect_x': SLIDERS_X,
                 'rect_y': CENTER_Y + MARGIN*1,
-                'value': 2,
+                'value': 6,
                 'dragging': False,
                 'integer': True,
                 'min': 1,
@@ -359,7 +360,18 @@ class Menu:
             slider['value'] = int(slider['value'])
 
     def start_new_simulation(self):
-        simulation = Simulation(
+        
+
+        global simulation_id
+
+        simulation = None
+
+        for simulation_id in range(num_simulations):
+
+            del simulation
+
+            simulation = Simulation(
+
             window=self.window,
             total_floors=self.sliders['total_floors']['value'],
             simulation_time=self.sliders['simulation_time']['value'],
@@ -368,7 +380,10 @@ class Menu:
             elevator_capacity=self.sliders['elevator_capacity']['value'],
             speed=self.sliders['elevator_speed']['value']
         )
-        simulation.main()
+            print(f"Simulation {simulation_id + 1}/{num_simulations} ")
+            simulation.main()
+        
+        simulation.show_results()
 
     def draw_slider(self, slider, label):
         pygame.draw.rect(self.window, BLACK, (slider['rect_x'], slider['rect_y'], 200, 10))
@@ -499,19 +514,30 @@ class Simulation:
             text = font.render(f'Piętro {i}', True, BLACK)
             self.window.blit(text, (10, y + 5))
 
-    def take_stats(self, moving_mean_window_size = 5):
-        data = np.array(RESULTS)
-        mean = np.mean(data)
-        std = np.std(data)
-        
-        window_size = moving_mean_window_size
-        moving_mean = np.convolve(data, np.ones(window_size)/window_size, mode='valid')
-        random_time = rd.choice(RESULTS[int(0.2*len(RESULTS)):])
 
-        self.mean = mean
-        self.std = std
-        self.random_time = random_time
-        self.moving_mean = moving_mean
+    def take_stats(self, moving_mean_window_size = 5):
+        
+        random_persons = []
+        self.moving_means = []
+
+        for _i in range(num_simulations):
+
+            data = np.array(RESULTS[_i])
+            #mean = np.mean(data)
+            #std = np.std(data)
+            
+            window_size = moving_mean_window_size
+            moving_mean = np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+            random_time = rd.choice(RESULTS[_i][int(0.2*len(RESULTS)):])
+            random_persons.append(random_time)
+            self.moving_means.append(moving_mean)
+            # self.mean = mean
+            # self.std = std
+            # self.random_time = random_time
+        
+        operation_data = np.array(random_persons)
+        self.mean = np.mean(operation_data)
+        self.std = np.std(operation_data)
 
 
     def display_statistics(self):
@@ -522,12 +548,15 @@ class Simulation:
 
         mean_text = font.render(f"Średnia: {self.mean:.2f}", True, BLACK)
         std_text = font.render(f"Odchylenie Standardowe: {self.std:.2f}", True, BLACK)
-        random_person_handling_time = font.render(f"Czas Obsługi Pojedynczej Losowej Osoby: {self.random_time}", True, BLACK)
+        #random_person_handling_time = font.render(f"Czas Obsługi Pojedynczej Losowej Osoby: {self.random_time}", True, BLACK)
 
 
         plt.figure()
-        plt.plot(self.moving_mean, label="Średnia Ruchoma")
-        plt.xlabel("Próba")
+        line_styles = ['-.']
+        for i, moving_mean in enumerate(self.moving_means):
+            #print(moving_mean)
+            plt.plot(moving_mean, label=f"Średnia Ruchoma ID {i}", linestyle=line_styles[i % len(line_styles)])
+        plt.xlabel("Indeks")
         plt.ylabel("Wartość")
         plt.title("Wykres Średniej Ruchomej")
         plt.legend()
@@ -541,13 +570,11 @@ class Simulation:
 
         self.window.blit(mean_text, (10, 550))
         self.window.blit(std_text, (10, 580))
-        self.window.blit(random_person_handling_time, (10, 610))
+        #self.window.blit(random_person_handling_time, (10, 610))
 
     def main(self):
                             
         while self.run:
-
-            RESULTS = []
 
             if time.time() - self.start_timer > self.simulation_time:
                 self.run_stats_time = True
@@ -585,7 +612,7 @@ class Simulation:
 
             self.draw_floors()
             self.draw_button(self.manual_mode)
-            self.draw_back_button()
+
 
             self.elevator.draw()
 
@@ -598,12 +625,14 @@ class Simulation:
                         
                     person.move(self.elevator)
                     person.draw(self.window)
-                     
-            
+
+
+            self.draw_back_button()            
             pygame.display.update()
 
-        #print(RESULTS)
 
+    def show_results(self):
+        
         if self.run_stats_time:
             self.take_stats()
 
